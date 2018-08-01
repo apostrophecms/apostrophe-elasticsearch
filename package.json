@@ -1,0 +1,31 @@
+{
+  "name": "apostrophe-elasticsearch",
+  "version": "2.0.0",
+  "description": "All text searches within Apostrophe are powered by Elasticsearch when this module is active.",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.6.1",
+    "bluebird": "^3.5.1",
+    "elasticsearch": "^15.1.1",
+    "lodash": "^4.17.10"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apostrophecms/apostrophe-elasticsearch.git"
+  },
+  "keywords": [
+    "elasticsearch",
+    "apostrophecms",
+    "apostrophe"
+  ],
+  "author": "P'unk Avenue LLC",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/apostrophecms/apostrophe-elasticsearch/issues"
+  },
+  "homepage": "https://github.com/apostrophecms/apostrophe-elasticsearch#readme"
+}
