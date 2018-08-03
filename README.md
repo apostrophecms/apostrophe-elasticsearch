@@ -24,12 +24,38 @@ modules: {
       title: 100,
       highSearchText: 10,
       lowSearchText: 1
-    }
+    },
+    // Simple shortcut to set the analyzer for all indexes.
+    // Useful for single-language sites
+    analyzer: 'french',
+    // Shortcut to specify analyzers by locale (with apostrophe-workflow)
+    analyzers: {
+      master: 'french',
+      fr: 'french',
+      en: 'english'
+    },
+    // Becomes the elasticsearch `settings` property of each index
+    indexSettings: {
+      'analysis': {
+        'analyzer': 'french'
+      }
+    },
+    // Sets additional subproperties of the elasticsearch `settings` property
+    // of the index, on a per-locale basis (for use with apostrophe-workflow)
+    localeIndexSettings: {
+      'en': {
+        'analysis': {
+          'analyzer': 'english'
+        }
+      }
+    },
   }
 }
 ```
 
 > **"What are all these fields?"** `lowSearchText` contains all of the text of the doc, including rich text editor content, stripped of its markup. `highSearchText` contains only text in `string` and `tags` schema fields and is often boosted higher. Note that these will both contain `title`. However, further weighting things like `title` and `tags` yourself gives you more fine-grained control.
+
+> **"What are the possible properties for `indexSettings` and `localeIndexSettings`?"** See the [elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules.html).
 
 Now we need to index our existing docs in Elasticsearch. You must run this task at least once when adding this module:
 
@@ -37,7 +63,7 @@ Now we need to index our existing docs in Elasticsearch. You must run this task 
 node app apostrophe-elasticsearch:reindex
 ```
 
-> **Apostrophe automatically updates the index as you edit docs.** You don't have to run this task all the time! However, if you change your fields option or make significant edits that are invisible to Apostrophe via direct MongoDB updates, you may wish to run this task again. You do not have to run it again when you change `boosts`.
+> **Apostrophe automatically updates the index as you edit docs.** You don't have to run this task all the time! However, if you change your `fields` option, change `indexSettings`, `analyzer`, `analyzers` or `localeIndexSettings`, or make significant edits that are invisible to Apostrophe via direct MongoDB updates, you should run this task again. You do not have to run it again when you change `boosts`.
 
 Apostrophe will now use Elasticsearch to implement all searches that formerly used the built-in MongoDB text index:
 
@@ -45,7 +71,7 @@ Apostrophe will now use Elasticsearch to implement all searches that formerly us
 * Anything else based on the `search()` cursor filter
 * Anything else based on the `autocomplete()`  cursor filter
 * Anything based on the `q` or `search` query parameters to an apostrophe-pieces-page (these invoke `search` via `queryToFilters`)
-* Anything based on the `autocomplete` query parameter (this invokes `autocomplete` via `queryToFilters)`
+* Anything based on the `autocomplete` query parameter (this invokes `autocomplete` via `queryToFilters`)
 
 > **All queries involving `search` or `autocomplete` will always sort their results in the order returned by Elasticsearch,** regardless of the `sort` cursor filter. Relevance is almost always the best sort order for results that include a free text search, and to do otherwise would require an exhaustive search of every match in Elasticsearch (potentially thousands of docs), just in case the last one higher according to some other criterion. Support for sorting on some other properties may be added later as more information is mirrored in Elasticsearch.
 

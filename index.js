@@ -1,6 +1,6 @@
-var elasticsearch = require('elasticsearch');
-var async = require('async');
-var _ = require('lodash');
+const elasticsearch = require('elasticsearch');
+const async = require('async');
+const _ = require('lodash');
 
 module.exports = {
   afterConstruct: function(self, callback) {
@@ -14,8 +14,8 @@ module.exports = {
       self.baseName = self.options.baseName || self.apos.shortName;
       // Index names are restricted to lowercase letters
       self.docIndex = self.baseName.toLowerCase() + 'aposdocs';
-      var host;
-      var esOptions = (self.options.elasticsearchOptions || {});
+      let host = null;
+      const esOptions = (self.options.elasticsearchOptions || {});
       if (self.options.port) {
         host = (self.options.host || 'localhost') + ':' + self.options.port;
       } else {
@@ -31,7 +31,7 @@ module.exports = {
     };
 
     self.docBeforeSave = function(req, doc, options, callback) {
-      var body = {};
+      const body = {};
       _.each(self.fields, function(field) {
         body[field] = doc[field];
         // Allow exact matches of fields too without as much overthinking
@@ -41,11 +41,11 @@ module.exports = {
           body[field + 'ESExact'] = doc[field];
         }
       });
-      var toIndex = {
+      const toIndex = {
         id: doc._id,
         // Why is this necessary at all?
         type: 'aposDoc',
-        refresh: options.elasticsearchDefer ? false : true,
+        refresh: !options.elasticsearchDefer,
         body: body
       };
       // No idea why it isn't cool to have this in the body too
@@ -56,13 +56,13 @@ module.exports = {
         }, toIndex), callback);
       } else {
         // Not locale specific, so must appear in all locale indexes
-        var locales = [ 'default' ];
-        var workflow = self.apos.modules['apostrophe-workflow'];
+        let locales = [ 'default' ];
+        const workflow = self.apos.modules['apostrophe-workflow'];
         if (workflow) {
           locales = _.keys(workflow.locales);
         }
         return async.eachLimit(locales, 5, function(locale, callback) {
-            return self.client.index(_.assign({
+          return self.client.index(_.assign({
             index: self.getLocaleIndex(locale)
           }, toIndex), callback);
         }, callback);
@@ -71,7 +71,7 @@ module.exports = {
     self.indexNamesSeen = {};
     self.getLocaleIndex = function(locale) {
       locale = locale.toLowerCase();
-      var indexName = self.docIndex + locale.replace(/[^a-z]/g, '');
+      const indexName = self.docIndex + locale.replace(/[^a-z]/g, '');
       if (self.indexNamesSeen[indexName] && (self.indexNamesSeen[indexName] !== locale)) {
         throw new Error('apostrophe-elasticsearch: the locale names ' + locale + ' and ' + self.indexNamesSeen[indexName] + ' cannot be distinguished purely by their lowercased letters. elasticsearch allows no other characters in index names.');
       }
@@ -103,7 +103,7 @@ module.exports = {
           return callback(err);
         }
         // Strange return format
-        var indexes = (result || '').split(/\n/);
+        let indexes = (result || '').split(/\n/);
         indexes = _.filter(indexes, function(index) {
           return index.substr(0, self.docIndex.length) === self.docIndex;
         });
@@ -117,15 +117,15 @@ module.exports = {
     };
 
     self.getLocales = function() {
-      var workflow = self.apos.modules['apostrophe-workflow'];
+      const workflow = self.apos.modules['apostrophe-workflow'];
       return workflow ? _.keys(workflow.locales) : [ 'default' ];
     };
 
     // Create all indexes. Called by the reindex task, otherwise not needed
     self.createIndexes = function(callback) {
-      var locales = self.getLocales();
+      const locales = self.getLocales();
       return async.eachSeries(locales, function(locale, callback) {
-        var properties = {};
+        const properties = {};
         _.each(self.fields, function(field) {
           properties[field] = {
             type: 'text'
@@ -137,6 +137,7 @@ module.exports = {
         return self.client.indices.create({
           index: self.getLocaleIndex(locale),
           body: {
+            settings: self.getLocaleSettings(locale),
             mappings: {
               aposDoc: {
                 properties: properties
@@ -145,20 +146,42 @@ module.exports = {
           }
         }, callback);
       }, callback);
-    };          
-    
+    };
+
+    self.getLocaleSettings = function(locale) {
+      locale = locale.replace(/-draft$/, '');
+      const settings = {};
+      _.merge(settings, self.options.indexSettings || {});
+      if (self.options.analyzer) {
+        _.merge(settings, {
+          'analysis': {
+            'analyzer': self.options.analyzer
+          }
+        });
+      }
+      _.merge(settings, (self.options.localeIndexSettings || {})[locale] || {});
+      if (self.options.analyzers && self.options.analyzers[locale]) {
+        _.merge(settings, {
+          'analysis': {
+            'analyzer': self.options.analyzers[locale]
+          }
+        });
+      }
+      return settings;
+    };
+
     // Index all documents. Called by the reindex task, otherwise not needed
     self.index = function(callback) {
-      var req = self.apos.tasks.getReq();
+      const req = self.apos.tasks.getReq();
       return self.apos.migrations.eachDoc({}, function(doc, callback) {
         return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, callback);
       }, callback);
     };
     // Refresh the index (commit it so it can be used). Called by the reindex task
-    // once at the end for efficiency 
+    // once at the end for efficiency
     self.refresh = function(callback) {
-      var locales = self.getLocales();
-      var indexes = _.map(locales, self.getLocaleIndex);
+      const locales = self.getLocales();
+      const indexes = _.map(locales, self.getLocaleIndex);
       return self.client.indices.refresh({ index: indexes }, callback);
     };
   }
