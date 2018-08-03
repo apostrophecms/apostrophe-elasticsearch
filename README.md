@@ -15,24 +15,29 @@ You can also configure custom weights for various properties if present in the d
 // in app.js
 modules: {
   'apostrophe-elasticsearch': {
-    // These actually match the defaults
-    tags: 50,
-    title: 100,
-    highSearchText: 10,
-    lowSearchText: 1
+    // This is the default list of fields.
+    fields: [ 'title', 'tags', 'lowSearchText', 'highSearchText' ],
+    // Relative importance. Note that if you don't specify elasticsearch
+    // does a rather good job figuring this out on its own.
+    boosts: {
+      tags: 50,
+      title: 100,
+      highSearchText: 10,
+      lowSearchText: 1
+    }
   }
 }
 ```
 
-> `lowSearchText` contains all of the text of the doc, including rich text editor content, stripped of its markup. `highSearchText` contains only text in `string` and `tags` schema fields. Note that these will both contain `title`. However, further weighting things like `title` and `tags` yourself gives you more fine-grained control.
+> **"What are all these fields?"** `lowSearchText` contains all of the text of the doc, including rich text editor content, stripped of its markup. `highSearchText` contains only text in `string` and `tags` schema fields and is often boosted higher. Note that these will both contain `title`. However, further weighting things like `title` and `tags` yourself gives you more fine-grained control.
 
-Now we need to index our existing docs in Elasticsearch:
+Now we need to index our existing docs in Elasticsearch. You must run this task at least once when adding this module:
 
 ```
 node app apostrophe-elasticsearch:reindex
 ```
 
-> **Apostrophe automatically updates the index as you edit docs.** You don't have to run this task all the time! However, if you change your weights or make significant edits that are invisible to Apostrophe via direct MongoDB updates, you may wish to run this task again.
+> **Apostrophe automatically updates the index as you edit docs.** You don't have to run this task all the time! However, if you change your fields option or make significant edits that are invisible to Apostrophe via direct MongoDB updates, you may wish to run this task again. You do not have to run it again when you change `boosts`.
 
 Apostrophe will now use Elasticsearch to implement all searches that formerly used the built-in MongoDB text index:
 

@@ -4,14 +4,11 @@ var _ = require('lodash');
 
 module.exports = {
   afterConstruct: function(self, callback) {
-    self.addIndexTask();
-    return async.series([
-      self.connect,
-      self.ensureIndexes
-    ], callback);
+    self.addReindexTask();
+    return self.connect(callback);
   },
   construct: function(self, options) {
-    self.fields = (self.options.fields || [ 'title', 'tags', 'type', 'lowSearchWords', 'highSearchWords' ]).concat(self.options.addFields || []);
+    self.fields = (self.options.fields || [ 'title', 'tags', 'type', 'lowSearchText', 'highSearchText' ]).concat(self.options.addFields || []);
     self.apos.define('apostrophe-cursor', require('./lib/cursor.js'));
     self.connect = function(callback) {
       self.baseName = self.options.baseName || self.apos.shortName;
@@ -32,43 +29,18 @@ module.exports = {
         requestTimeout: 5000
       }, callback);
     };
-    self.ensureIndexes = function(callback) {
-      var workflow = self.apos.modules['apostrophe-workflow'];
-      var locales = workflow ? _.keys(workflow) : [ 'default' ];
-      return async.eachSeries(locales, function(locale, callback) {
-        return self.client.indices.create({
-          index: self.getLocaleIndex(locale),
-          body: {
-            mappings: {
-              aposDoc: {
-                properties: {
-                  tags: {
-                    type: 'keyword'
-                  },
-                  type: {
-                    type: 'keyword'
-                  },
-                  __id: {
-                    type: 'keyword'
-                  },
-                  slug: {
-                    type: 'keyword'
-                  },
-                  path: {
-                    type: 'keyword'
-                  }
-                }
-              }
-            }
-          }
-        }, callback);
-      }, callback);
-    }
+
     self.docBeforeSave = function(req, doc, options, callback) {
       var body = {};
       _.each(self.fields, function(field) {
         body[field] = doc[field];
-      })
+        // Allow exact matches of fields too without as much overthinking
+        // of types, but don't redundantly store the 'exact' value where
+        // it's too large to be requested that way anyway
+        if (((!doc[field]) || JSON.stringify(doc[field]).length < 4096)) {
+          body[field + 'ESExact'] = doc[field];
+        }
+      });
       var toIndex = {
         id: doc._id,
         // Why is this necessary at all?
@@ -90,7 +62,7 @@ module.exports = {
           locales = _.keys(workflow.locales);
         }
         return async.eachLimit(locales, 5, function(locale, callback) {
-          return self.client.index(_.assign({
+            return self.client.index(_.assign({
             index: self.getLocaleIndex(locale)
           }, toIndex), callback);
         }, callback);
@@ -106,23 +78,88 @@ module.exports = {
       self.indexNamesSeen[indexName] = locale;
       return indexName;
     };
-    self.addIndexTask = function() {
-      return self.addTask('index', 'Usage: node app apostrophe-elasticsearch:index\n\nYou should only need this task once under normal conditions.', self.indexTask);
+    self.addReindexTask = function() {
+      return self.addTask('reindex', 'Usage: node app apostrophe-elasticsearch:reindex\n\nYou should only need this task once under normal conditions.', self.reindexTask);
     };
-    self.indexTask = function(apos, argv, callback) {
-      var req = self.apos.tasks.getReq();
-      return async.series([
-        index,
-        refresh
-      ], callback);
-      function index(callback) {
-        return self.apos.migrations.eachDoc({}, function(doc, callback) {
-          return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, callback);
+
+    self.reindexTask = function(apos, argv, callback) {
+      return self.apos.locks.withLock('apostrophe-elasticsearch-reindex', function(callback) {
+        return async.series([
+          self.dropIndexes,
+          self.createIndexes,
+          self.index,
+          self.refresh
+        ], callback);
+      });
+    };
+
+    // Drop all indexes. Called by the reindex task, otherwise not needed
+
+    self.dropIndexes = function(callback) {
+      return self.client.cat.indices({
+        h: ['index']
+      }, function(err, result) {
+        if (err) {
+          return callback(err);
+        }
+        // Strange return format
+        var indexes = (result || '').split(/\n/);
+        indexes = _.filter(indexes, function(index) {
+          return index.substr(0, self.docIndex.length) === self.docIndex;
+        });
+        if (!indexes.length) {
+          return callback(null);
+        }
+        return self.client.indices.delete({
+          index: indexes
         }, callback);
-      }
-      function refresh(callback) {
-        return self.client.indices.refresh({ index: self.docIndex }, callback);
-      }
+      });
+    };
+
+    self.getLocales = function() {
+      var workflow = self.apos.modules['apostrophe-workflow'];
+      return workflow ? _.keys(workflow.locales) : [ 'default' ];
+    };
+
+    // Create all indexes. Called by the reindex task, otherwise not needed
+    self.createIndexes = function(callback) {
+      var locales = self.getLocales();
+      return async.eachSeries(locales, function(locale, callback) {
+        var properties = {};
+        _.each(self.fields, function(field) {
+          properties[field] = {
+            type: 'text'
+          };
+          properties[field + 'ESExact'] = {
+            type: 'keyword'
+          };
+        });
+        return self.client.indices.create({
+          index: self.getLocaleIndex(locale),
+          body: {
+            mappings: {
+              aposDoc: {
+                properties: properties
+              }
+            }
+          }
+        }, callback);
+      }, callback);
+    };          
+    
+    // Index all documents. Called by the reindex task, otherwise not needed
+    self.index = function(callback) {
+      var req = self.apos.tasks.getReq();
+      return self.apos.migrations.eachDoc({}, function(doc, callback) {
+        return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, callback);
+      }, callback);
+    };
+    // Refresh the index (commit it so it can be used). Called by the reindex task
+    // once at the end for efficiency 
+    self.refresh = function(callback) {
+      var locales = self.getLocales();
+      var indexes = _.map(locales, self.getLocaleIndex);
+      return self.client.indices.refresh({ index: indexes }, callback);
     };
   }
 };
