@@ -33,12 +33,23 @@ module.exports = {
     self.docBeforeSave = function(req, doc, options, callback) {
       const body = {};
       _.each(self.fields, function(field) {
-        body[field] = doc[field];
-        // Allow exact matches of fields too without as much overthinking
-        // of types, but don't redundantly store the 'exact' value where
-        // it's too large to be requested that way anyway
-        if (((!doc[field]) || JSON.stringify(doc[field]).length < 4096)) {
-          body[field + 'ESExact'] = doc[field];
+        const value = doc[field];
+        let good = false;
+        if (Array.isArray(value)) {
+          if ((typeof value[0]) !== 'object') {
+            good = true;
+          }
+        } else if ((typeof value) !== 'object') {
+          good = true;
+        }
+        if (good) {
+          body[field] = doc[field];
+          // Allow exact matches of fields too without as much overthinking
+          // of types, but don't redundantly store the 'exact' value where
+          // it's too large to be requested that way anyway
+          if (((!doc[field]) || JSON.stringify(doc[field]).length < 4096)) {
+            body[field + 'ESExact'] = doc[field];
+          }
         }
       });
       const toIndex = {
