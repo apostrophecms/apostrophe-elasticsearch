@@ -1,5 +1,7 @@
 When this module is active, all full-text searches of your [ApostropheCMS](https://apostrophecms.org) site run through [Elasticsearch](https://www.elastic.co/products/elasticsearch), replacing the built-in MongoDB text search engine normally used by Apostrophe.
 
+**You must have an Elasticsearch server.** By default, Elasticsearch is looked for on the same computer, but you may specify `elasticsearchOptions` to [change that](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/configuration.html#config-options).
+
 ```
 npm install apostrophe-elasticsearch
 ```
