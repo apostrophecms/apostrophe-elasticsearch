@@ -93,6 +93,7 @@ describe('apostrophe-elasticsearch: ', function() {
               let piece = self.newInstance();
               // one word for ease of search test
               piece.title = 'product' + (i + 1);
+              piece.age = i % 10;
               piece.body = {
                 type: 'area',
                 items: [
@@ -184,7 +185,6 @@ describe('apostrophe-elasticsearch: ', function() {
     const req = apos.tasks.getAnonReq();
     return apos.products.find(req).search('calligraphy').toArray().then(function(docs) {
       assert(docs);
-      console.log(docs.length);
       assert(docs.length === 100);
     });
   });
@@ -213,7 +213,6 @@ describe('apostrophe-elasticsearch: ', function() {
         i += 5;
         if (i === 50) {
           assert(_.keys(titlesSeen).length === 50);
-          console.log('**** WE WIN');
           return;
         }
         return testNextBatch();
@@ -226,7 +225,37 @@ describe('apostrophe-elasticsearch: ', function() {
     return apos.products.find(req, { title: 'product50' }).toObject().then(function(product) {
       assert(product);
       assert(product.title === 'product50');
-      // console.log(JSON.stringify(product, null, '  '));
+    });
+  });
+
+  it('distinct works properly', function() {
+    const req = apos.tasks.getReq();
+    return apos.products.find(req).search('calligraphy').toDistinct('age').then(function(ages) {
+      assert(ages);
+      assert(ages.length === 10);
+      for (let i = 0; (i < 10); i++) {
+        assert(_.find(ages, function(age) {
+          return age === i;
+        }) !== undefined);
+      }
+    });
+  });
+
+  it('distinct works properly with counts', function() {
+    const req = apos.tasks.getReq();
+    const cursor = apos.products.find(req).search('calligraphy').distinctCounts(true);
+    return cursor.toDistinct('age').then(function(ages) {
+      assert(ages);
+      assert(ages.length === 10);
+      for (let i = 0; (i < 10); i++) {
+        assert(_.find(ages, function(age) {
+          return age === i;
+        }) !== undefined);
+      }
+      let counts = cursor.get('distinctCounts');
+      for (let i = 0; (i < 10); i++) {
+        assert(counts[i] === 10);
+      }
     });
   });
 
