@@ -9,7 +9,7 @@ modules: {
 }
 ```
 
-You can also configure custom weights for various properties if present in the doc:
+You can also configure custom boosts for various properties if present in the doc, decide what fields to index, and do much more, including passing options through to Elasticsearch. Here is a more complex configuration with all of the options in play:
 
 ```javascript
 // in app.js
@@ -90,9 +90,9 @@ Apostrophe will now use Elasticsearch to implement all searches that formerly us
 * Anything based on the `q` or `search` query parameters to an apostrophe-pieces-page (these invoke `search` via `queryToFilters`)
 * Anything based on the `autocomplete` query parameter (this invokes `autocomplete` via `queryToFilters`)
 
-> **All queries involving `search` or `autocomplete` will always sort their results in the order returned by Elasticsearch,** regardless of the `sort` cursor filter. Relevance is almost always the best sort order for results that include a free text search, and to do otherwise would require an exhaustive search of every match in Elasticsearch (potentially thousands of docs), just in case the last one higher according to some other criterion. Support for sorting on some other properties may be added later as more information is mirrored in Elasticsearch.
+> **All queries involving `search` or `autocomplete` will always sort their results in the order returned by Elasticsearch,** regardless of the `sort` cursor filter. Relevance is almost always the best sort order for results that include a free text search, and to do otherwise would require an exhaustive search of every match in Elasticsearch (potentially thousands of docs), just in case the last one scores higher according to some other criterion. Support for sorting on some other properties may be added later as more information is mirrored in Elasticsearch.
 
-> **If a query cannot be completely satisfied by the first 10,000 matches in Elasticsearch, the results may be incomplete.** This is true even if the first 10,000 are simply being bypassed with `skip`. This is a built-in safeguard in Elasticsearch due to the memory and time impact of such searches. In rare cases, such as a search for a word mentioned in one document that is less relevant than the first 10,000 matching documents but is still the only relevant documentation according to MongoDB criteria also present in your query, this could impact the completeness of the response. However certain common categories of MongoDB query criteria are in fact replicated to Elasticsearch to mitigate this problem and improve performance (see below).
+> **If a query cannot be completely satisfied by the first 10,000 matches in Elasticsearch, the results may be incomplete.** This is true even if the first 10,000 are simply being bypassed with `skip`. This is a built-in safeguard in Elasticsearch due to the memory and time impact of such searches. In rare cases, such as a search for a word mentioned in one document that is less relevant than the first 10,000 matching documents but is still the only relevant document according to MongoDB criteria also present in your query, this could impact the completeness of the response. However certain common categories of MongoDB query criteria are in fact replicated to Elasticsearch to mitigate this problem and improve performance (see below).
 
 ## Theory of operation
 
