@@ -9,9 +9,6 @@
     "elasticsearch": "^15.1.1",
     "lodash": "^4.17.10"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apostrophecms/apostrophe-elasticsearch.git"
@@ -28,13 +25,17 @@
   },
   "homepage": "https://github.com/apostrophecms/apostrophe-elasticsearch#readme",
   "devDependencies": {
-    "mocha": "^5.1.1",
+    "apostrophe": "^2.61.0",
     "eslint": "^4.0.0",
+    "eslint-config-apostrophe": "^2.0.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-plugin-import": "^2.13.0",
     "eslint-plugin-node": "^6.0.1",
     "eslint-plugin-promise": "^3.8.0",
     "eslint-plugin-standard": "^3.1.0",
-    "eslint-config-apostrophe": "^2.0.0"
+    "mocha": "^5.1.1"
+  },
+  "scripts": {
+    "test": "mocha"
   }
 }

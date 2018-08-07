@@ -48,6 +48,7 @@ module.exports = {
         refresh: !options.elasticsearchDefer,
         body: body
       };
+      // console.log(toIndex);
       // No idea why it isn't cool to have this in the body too
       delete toIndex.body._id;
       if (doc.workflowLocale) {

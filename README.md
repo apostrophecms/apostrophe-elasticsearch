@@ -15,8 +15,21 @@ You can also configure custom weights for various properties if present in the d
 // in app.js
 modules: {
   'apostrophe-elasticsearch': {
+    // Default matches your shortName. Index names
+    // will look like: myprojectaposdocsen (for en locale),
+    // myprojectaposdocsfr (for fr locale), etc.
+    baseName: 'myproject',
+
+    // elasticsearch config options, please see:
+    // https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/configuration.html#config-options
+    elasticsearchOptions: {
+      // This is the default
+      host: 'localhost:9200'
+    },
+
     // This is the default list of fields.
     fields: [ 'title', 'tags', 'lowSearchText', 'highSearchText' ],
+
     // Relative importance. Note that if you don't specify elasticsearch
     // does a rather good job figuring this out on its own.
     boosts: {
@@ -25,21 +38,25 @@ modules: {
       highSearchText: 10,
       lowSearchText: 1
     },
+
     // Simple shortcut to set the analyzer for all indexes.
     // Useful for single-language sites
     analyzer: 'french',
+
     // Shortcut to specify analyzers by locale (with apostrophe-workflow)
     analyzers: {
       master: 'french',
       fr: 'french',
       en: 'english'
     },
+
     // Becomes the elasticsearch `settings` property of each index
     indexSettings: {
       'analysis': {
         'analyzer': 'french'
       }
     },
+    
     // Sets additional subproperties of the elasticsearch `settings` property
     // of the index, on a per-locale basis (for use with apostrophe-workflow)
     localeIndexSettings: {
