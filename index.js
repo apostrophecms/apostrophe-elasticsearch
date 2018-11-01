@@ -23,6 +23,7 @@ module.exports = {
         host = self.options.host || 'localhost:9200';
       }
       esOptions.host = esOptions.host || host;
+      esOptions.apiVersion = esOptions.apiVersion || '6.4';
 
       self.client = new elasticsearch.Client(esOptions);
       return self.client.ping({
@@ -30,7 +31,21 @@ module.exports = {
       }, callback);
     };
 
-    self.docBeforeSave = function(req, doc, options, callback) {
+    self.docAfterSave = function(req, doc, options, callback) {
+      const args = {
+        body: self.getBulkIndexCommandsForDoc(req, doc, options),
+        refresh: (!options.elasticsearchDefer).toString()
+      };
+      return self.client.bulk(args, callback);
+    };
+
+    // Return an array of parameters to `self.client.bulk` to
+    // index the doc in question. There could be just one index
+    // action description and one document body, or there could be
+    // many such pairs, depending on workflow requirements.
+
+    self.getBulkIndexCommandsForDoc = function(req, doc, options) {
+      const commands = [];
       const body = {};
       _.each(self.fields, function(field) {
         const value = doc[field];
@@ -52,19 +67,18 @@ module.exports = {
           }
         }
       });
-      const toIndex = {
-        id: doc._id,
-        // Why is this necessary at all?
-        type: 'aposDoc',
-        refresh: !options.elasticsearchDefer,
-        body: body
-      };
-      // No idea why it isn't cool to have this in the body too
-      delete toIndex.body._id;
+      // No idea why it isn't cool to have this in the body too,
+      // but ES flips out
+      delete body._id;
       if (doc.workflowLocale) {
-        return self.client.index(_.assign({
-          index: self.getLocaleIndex(doc.workflowLocale)
-        }, toIndex), callback);
+        commands.push({
+          index: {
+            _index: self.getLocaleIndex(doc.workflowLocale),
+            _type: 'aposDoc',
+            _id: doc._id
+          }
+        });
+        commands.push(body);
       } else {
         // Not locale specific, so must appear in all locale indexes
         let locales = [ 'default' ];
@@ -72,13 +86,20 @@ module.exports = {
         if (workflow) {
           locales = _.keys(workflow.locales);
         }
-        return async.eachLimit(locales, 5, function(locale, callback) {
-          return self.client.index(_.assign({
-            index: self.getLocaleIndex(locale)
-          }, toIndex), callback);
-        }, callback);
+        _.each(locales, function(locale) {
+          commands.push({
+            index: {
+              _index: self.getLocaleIndex(locale),
+              _type: 'aposDoc',
+              _id: doc._id
+            }
+          });
+          commands.push(body);
+        });
       }
+      return commands;
     };
+
     self.indexNamesSeen = {};
     self.getLocaleIndex = function(locale) {
       locale = locale.toLowerCase();
@@ -186,35 +207,56 @@ module.exports = {
 
     // Index all documents. Called by the reindex task, otherwise not needed
     self.index = function(callback) {
+      const batchSize = self.options.batchSize || 100;
       const req = self.apos.tasks.getReq();
       self.verbose('Indexing all documents');
       let reindexed = 0;
+      let last = '';
+      let count;
       self.verbose('Counting docs for progress display');
-      return self.apos.docs.db.count(function(err, count) {
+      return self.apos.docs.db.count(function(err, _count) {
         if (err) {
           return callback(err);
         }
-        return self.apos.migrations.eachDoc({}, function(doc, callback) {
-          return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, function(err) {
-            if (err) {
-              return callback(err);
-            }
-            reindexed++;
-            if (!(reindexed % 100)) {
-              const percent = Math.floor(reindexed / count * 100 * 100) / 100;
-              self.verbose(`Indexed ${reindexed} of ${count} (${percent}%)`);
-            }
-            return callback(null);
-          });
-        }, function(err) {
+        count = _count;
+        // Do the next batch, recursively
+        return nextBatch(callback);
+      });
+      function nextBatch(callback) {
+        return self.apos.docs.db.find({
+          _id: { $gt: last }
+        }).sort({ _id: 1 }).limit(batchSize).toArray(function(err, docs) {
           if (err) {
             return callback(err);
           }
-          self.verbose('Completed index of all documents');
-          return callback(null);
+          if (!docs.length) {
+            // This is how we terminate successfully
+            return callback(null);
+          }
+          last = docs[docs.length - 1]._id;
+          return indexBatch(docs, function(err) {
+            if (err) {
+              return callback(err);
+            }
+            return nextBatch(callback);
+          });
         });
-      });
+      }
+      function indexBatch(docs, callback) {
+        reindexed += docs.length;
+        const percent = Math.floor(reindexed / count * 100 * 100) / 100;
+        self.verbose(`Indexed ${reindexed} of ${count} (${percent}%)`);
+        const args = {
+          body: _.flatten(
+            _.map(docs, function(doc) {
+              return self.getBulkIndexCommandsForDoc(req, doc, {});
+            })
+          )
+        };
+        return self.client.bulk(args, callback);
+      }
     };
+
     // Refresh the index (commit it so it can be used). Called by the reindex task
     // once at the end for efficiency
     self.refresh = function(callback) {
