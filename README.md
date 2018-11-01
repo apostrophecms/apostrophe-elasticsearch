@@ -81,8 +81,10 @@ modules: {
 Now we need to index our existing docs in Elasticsearch. You must run this task at least once when adding this module:
 
 ```
-node app apostrophe-elasticsearch:reindex
+node app apostrophe-elasticsearch:reindex --verbose
 ```
+
+This task can take a long time on a large existing database, so the `--verbose` option displays progress information periodically. If you prefer you can leave it off.
 
 > **Apostrophe automatically updates the index as you edit docs.** You don't have to run this task all the time! However, if you change your `fields` option, change `indexSettings`, `analyzer`, `analyzers` or `localeIndexSettings`, or make significant edits that are invisible to Apostrophe via direct MongoDB updates, you should run this task again. You do not have to run it again when you change `boosts`.
 
