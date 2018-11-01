@@ -59,7 +59,6 @@ module.exports = {
         refresh: !options.elasticsearchDefer,
         body: body
       };
-      // console.log(toIndex);
       // No idea why it isn't cool to have this in the body too
       delete toIndex.body._id;
       if (doc.workflowLocale) {
@@ -95,6 +94,7 @@ module.exports = {
     };
 
     self.reindexTask = function(apos, argv, callback) {
+      self.verbose('reindex task launched');
       return self.apos.locks.withLock('apostrophe-elasticsearch-reindex', function(callback) {
         return async.series([
           self.dropIndexes,
@@ -108,6 +108,7 @@ module.exports = {
     // Drop all indexes. Called by the reindex task, otherwise not needed
 
     self.dropIndexes = function(callback) {
+      self.verbose('dropping indexes');
       return self.client.cat.indices({
         h: ['index']
       }, function(err, result) {
@@ -135,6 +136,7 @@ module.exports = {
 
     // Create all indexes. Called by the reindex task, otherwise not needed
     self.createIndexes = function(callback) {
+      self.verbose('creating indexes');
       const locales = self.getLocales();
       return async.eachSeries(locales, function(locale, callback) {
         const properties = {};
@@ -185,16 +187,47 @@ module.exports = {
     // Index all documents. Called by the reindex task, otherwise not needed
     self.index = function(callback) {
       const req = self.apos.tasks.getReq();
-      return self.apos.migrations.eachDoc({}, function(doc, callback) {
-        return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, callback);
-      }, callback);
+      self.verbose('Indexing all documents');
+      let reindexed = 0;
+      self.verbose('Counting docs for progress display');
+      return self.apos.docs.db.count(function(err, count) {
+        if (err) {
+          return callback(err);
+        }
+        return self.apos.migrations.eachDoc({}, function(doc, callback) {
+          return self.docBeforeSave(req, doc, { elasticsearchDefer: true }, function(err) {
+            if (err) {
+              return callback(err);
+            }
+            reindexed++;
+            if (!(reindexed % 100)) {
+              const percent = Math.floor(reindexed / count * 100 * 100) / 100;
+              self.verbose(`Indexed ${reindexed} of ${count} (${percent}%)`);
+            }
+            return callback(null);
+          });
+        }, function(err) {
+          if (err) {
+            return callback(err);
+          }
+          self.verbose('Completed index of all documents');
+          return callback(null);
+        });
+      });
     };
     // Refresh the index (commit it so it can be used). Called by the reindex task
     // once at the end for efficiency
     self.refresh = function(callback) {
+      self.verbose('refreshing');
       const locales = self.getLocales();
       const indexes = _.map(locales, self.getLocaleIndex);
       return self.client.indices.refresh({ index: indexes }, callback);
+    };
+
+    self.verbose = function(s) {
+      if (self.apos.argv.verbose || self.options.verbose) {
+        self.apos.utils.info(self.__meta.name + ': ' + s);
+      }
     };
   }
 };
