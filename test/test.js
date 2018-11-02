@@ -5,7 +5,7 @@ describe('apostrophe-elasticsearch: ', function() {
 
   let apos = null;
 
-  this.timeout(5000);
+  this.timeout(20000);
 
   after(function(done) {
     try {
@@ -43,7 +43,7 @@ describe('apostrophe-elasticsearch: ', function() {
                   title: 'Tab One Child Two',
                   type: 'default',
                   slug: '/tab-one/child-two'
-                },
+                }
               ]
             },
             {
@@ -60,7 +60,7 @@ describe('apostrophe-elasticsearch: ', function() {
                   title: 'Tab Two Child Two',
                   type: 'default',
                   slug: '/tab-two/child-two'
-                },
+                }
               ]
             },
             {
@@ -127,7 +127,7 @@ describe('apostrophe-elasticsearch: ', function() {
   });
 
   it('reindex to remove old test cases', function() {
-    return apos.tasks.invoke('apostrophe-elasticsearch:reindex');
+    return apos.tasks.invoke('apostrophe-elasticsearch:reindex', { verbose: true });
   });
 
   it('insert many products for test purposes', function() {
