@@ -5,7 +5,7 @@ describe('apostrophe-elasticsearch: ', function() {
 
   let apos = null;
 
-  this.timeout(5000);
+  this.timeout(20000);
 
   after(function(done) {
     try {
