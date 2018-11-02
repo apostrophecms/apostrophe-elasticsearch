@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0
+
+Major performance and reliability improvements to the indexing procedure, especially the `apostrophe-elasticsearch:reindex` task. Batch operations are now used for better throughput, and when reindexing one locale is processed at a time to minimize resource contention between the different indexes. In addition, the reindex task now has a `--verbose` option that displays progress information, including an estimate of the remaining time. This estimate tends to be a bit optimistic because Elasticsearch does slow down somewhat as it fills up.
+
 ## 2.0.1
 
 Documentation tweaks.
