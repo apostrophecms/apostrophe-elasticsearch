@@ -217,7 +217,7 @@ module.exports = {
       const req = self.apos.tasks.getReq();
       self.verbose('Indexing all documents');
       const workflow = self.apos.modules['apostrophe-workflow'];
-      const locales = (workflow && _.keys(workflow.locales)) || [ null ];  
+      const locales = (workflow && _.keys(workflow.locales)) || [ null ];
       const start = Date.now();
       let li = 0;
       return async.eachSeries(locales, processLocale, callback);
@@ -247,7 +247,7 @@ module.exports = {
           return nextBatch(callback);
         });
         function nextBatch(callback) {
-          const start = Date.now();
+          // const start = Date.now();
           return self.apos.docs.db.find({
             $or: [
               {
@@ -260,7 +260,7 @@ module.exports = {
             ],
             _id: { $gt: last }
           }).sort({ _id: 1 }).limit(batchSize).toArray(function(err, docs) {
-            const end = Date.now();
+            // const end = Date.now();
             if (err) {
               return callback(err);
             }
@@ -271,9 +271,9 @@ module.exports = {
             }
             const lastDoc = docs[docs.length - 1];
             last = lastDoc._id;
-            const iStart = Date.now();
+            // const iStart = Date.now();
             return indexBatch(docs, function(err) {
-              const iEnd = Date.now();
+              // const iEnd = Date.now();
               if (err) {
                 return callback(err);
               }
