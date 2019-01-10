@@ -8,7 +8,12 @@ module.exports = {
     return self.connect(callback);
   },
   construct: function(self, options) {
-    self.fields = (self.options.fields || [ 'title', 'tags', 'type', 'lowSearchText', 'highSearchText' ]).concat(self.options.addFields || []);
+    self.fields = (self.options.fields || [ 'title', 'slug', 'path', 'tags', 'type', 'lowSearchText', 'highSearchText' ]).concat(self.options.addFields || []);
+    // Mandatory because the query engine does exact matches on them
+    // for performance
+    const mandatoryFields = [ 'slug', 'path', 'type', 'tags' ];
+    self.fields = self.fields.concat(mandatoryFields);
+    self.fields = _.uniq(self.fields);
     self.apos.define('apostrophe-cursor', require('./lib/cursor.js'));
     self.connect = function(callback) {
       self.baseName = self.options.baseName || self.apos.shortName;

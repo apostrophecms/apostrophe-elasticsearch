@@ -31,11 +31,16 @@ modules: {
       host: 'localhost:9200'
     },
 
-    // This is the default list of fields.
-    fields: [ 'title', 'tags', 'lowSearchText', 'highSearchText' ],
+    // Add an extra field to be indexed directly by Elasticsearch.
+    // Certain fields are always indexed in addition to these,
+    // including lowSearchText and highSearchText which most likely
+    // include your schema field's text already
+
+    addFields: [ 'interests' ],
 
     // Relative importance. Note that if you don't specify elasticsearch
     // does a rather good job figuring this out on its own.
+
     boosts: {
       tags: 50,
       title: 100,
@@ -74,7 +79,7 @@ modules: {
 }
 ```
 
-> **"What are all these fields?"** `lowSearchText` contains all of the text of the doc, including rich text editor content, stripped of its markup. `highSearchText` contains only text in `string` and `tags` schema fields and is often boosted higher. Note that these will both contain `title`. However, further weighting things like `title` and `tags` yourself gives you more fine-grained control.
+> **"What fields are always indexed?"** `lowSearchText` contains all of the text of the doc, including rich text editor content, stripped of its markup. `highSearchText` contains only text in `string` and `tags` schema fields and is often boosted higher. Note that these will both contain `title`. Also, `title`, `slug`, `path`, `tags` and `type` are always indexed. If you really want to, you can use the `fields` option to override this base list of fields and specify exactly the array of fields you want. However, certain fields are mandatory for the query engine to operate correctly and will automatically be added back.
 
 > **"What are the possible properties for `indexSettings` and `localeIndexSettings`?"** See the [elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules.html).
 
