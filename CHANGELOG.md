@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.2
+
+Does not crash if `null` or `undefined` is passed to the `search` cursor filter method. Thanks to giuseppecm.
+
 ## 2.1.1
 
 Fixed an oversight in the documentation which did not explain that the use of `addFields` is preferred over specifying `fields` in its entirety.
