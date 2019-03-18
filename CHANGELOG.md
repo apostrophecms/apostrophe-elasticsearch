@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.3
+
+Better test for inappropriate values given to the `search` cursor filter method, with full unit testing.
+
 ## 2.1.2
 
 Does not crash if `null` or `undefined` is passed to the `search` cursor filter method. Thanks to giuseppecm.

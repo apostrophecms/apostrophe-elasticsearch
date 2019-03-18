@@ -348,5 +348,13 @@ module.exports = {
         self.apos.utils.info(self.__meta.name + ': ' + s);
       }
     };
+
+    // Returns true if argument given converts to a nonempty string and
+    // is not otherwise harmful to pass to elasticsearch (so far, just
+    // the nonempty string check appears to be necessary)
+
+    self.safeQuery = function(s) {
+      return (s !== null) && (s !== undefined) && (s.toString().length);
+    };
   }
 };

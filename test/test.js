@@ -155,6 +155,39 @@ describe('apostrophe-elasticsearch: ', function() {
     });
   });
 
+  it('no search (return everything) if search parameter is null', function() {
+    const req = apos.tasks.getAnonReq();
+    const cursor = apos.products.find(req, {}).search(null);
+    return cursor.toArray().then(function(products) {
+      assert(products);
+      assert(products.length === 100);
+      // Make sure elasticsearch is not in use
+      assert(!cursor.get('elasticsearch'));
+    });
+  });
+
+  it('no search (return everything) if search parameter is undefined', function() {
+    const req = apos.tasks.getAnonReq();
+    const cursor = apos.products.find(req, {}).search(undefined);
+    return cursor.toArray().then(function(products) {
+      assert(products);
+      assert(products.length === 100);
+      // Make sure elasticsearch is not in use
+      assert(!cursor.get('elasticsearch'));
+    });
+  });
+
+  it('no search (return everything) if search parameter is empty string', function() {
+    const req = apos.tasks.getAnonReq();
+    const cursor = apos.products.find(req, {}).search('');
+    return cursor.toArray().then(function(products) {
+      assert(products);
+      assert(products.length === 100);
+      // Make sure elasticsearch is not in use
+      assert(!cursor.get('elasticsearch'));
+    });
+  });
+
   it('search for unpublished product should fail', function() {
     const req = apos.tasks.getAnonReq();
     return apos.products.find(req, {}).search('unpublished').toArray().then(function(products) {
@@ -257,6 +290,25 @@ describe('apostrophe-elasticsearch: ', function() {
         assert(counts[i] === 10);
       }
     });
+  });
+
+  it('safeQuery detects all arguments that do not convert to nonempty strings', function() {
+    const module = apos.modules['apostrophe-elasticsearch'];
+    const values = [ null, undefined, false, true, 0, '0', 1, '1', '' ];
+
+    for (const s of values) {
+      try {
+        const string = s.toString();
+        if (string.length) {
+          assert(module.safeQuery(s));
+        } else {
+          assert(!module.safeQuery(s));
+        }
+      } catch (e) {
+        assert(!module.safeQuery(s));
+      }
+    } 
+
   });
 
 });
